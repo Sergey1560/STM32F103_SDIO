@@ -53,11 +53,12 @@ uint8_t SD_Cmd(uint8_t cmd, uint32_t arg, uint16_t response_type, uint32_t *resp
 	}
 	
 	if (SDIO->STA & SDIO_STA_CTIMEOUT) {
+		ERROR("Cmd timeout");
 		return 2;
 	}
-	if (SDIO->STA & SDIO_STA_CCRCFAIL) {
-		return 3;  
-	}
+	// if (SDIO->STA & SDIO_STA_CCRCFAIL) {
+	// 	return 3;  
+	// }
 	return 0;
 }
 
@@ -67,7 +68,11 @@ uint32_t SD_transfer(uint8_t *buf, uint32_t blk, uint32_t cnt, uint32_t dir){
     uint32_t trials;
 	uint8_t cmd=0;
 	uint8_t *ptr = buf;
-	    
+
+	if (SDCard.Type != SDCT_SDHC) {
+		blk = blk * 512;
+	}
+
     trials=SDIO_DATA_TIMEOUT;
 	while (transmit && trials--) {};
 	if(!trials) {
@@ -197,6 +202,9 @@ uint8_t SD_Init(void) {
 		return 41; 
 	};
 
+	SDCard.Type = (response[0] & SD_HIGH_CAPACITY) ? SDCT_SDHC : SDCT_SDSC_V2;
+	DEBUG("Card type %d",SDCard.Type);
+
 	result = SD_Cmd(SD_CMD2,0x00,SDIO_RESP_LONG,(uint32_t*)response); //CMD2 CID R2
 	if (result != 0) {
 		ERROR("CMD2: %d",result);
@@ -253,7 +261,7 @@ uint8_t SD_Init(void) {
 		if (result != 0) {return 6;};
 		if (response[0] != 0x920) {return 5;};    //Убеждаемся, что карта находится в готовности работать с трансфером
 
-		tempreg=((0x01)<<SDIO_CLKCR_WIDBUS_Pos)| SDIO_CLKCR_CLKEN; 
+		tempreg=((0x01)<<SDIO_CLKCR_WIDBUS_Pos)| SDIO_CLKCR_CLKEN |( 2 << SDIO_CLKCR_CLKDIV_Pos); 
 		SDIO->CLKCR=tempreg;	
 
 		#if (SDIO_HIGH_SPEED != 0)
@@ -266,6 +274,16 @@ uint8_t SD_Init(void) {
 		tempreg=SDIO_CLKCR_CLKEN; 
 		SDIO->CLKCR=tempreg;	
 #endif
+
+
+	if ((SDCard.Type == SDCT_SDSC_V2)) {
+		result = SD_Cmd(SD_CMD_SET_BLOCKLEN, 512 ,SDIO_RESP_SHORT,(uint32_t*)response); //CMD16
+		if (result != 0) {
+			ERROR("Error set block size");
+			return 16;
+		}
+	}
+
 
 	DEBUG("SDINIT: ok");
 	return 0;

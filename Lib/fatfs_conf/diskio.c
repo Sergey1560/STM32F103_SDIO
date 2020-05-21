@@ -73,8 +73,10 @@ uint8_t res=0;
 		//1st read
 		res=SD_transfer((uint8_t *)buff, (uint32_t) sector, count, SD2UM);
 		if(res != 0){
+			ERROR("Read 1 error %d",res);
 			res=SD_transfer((uint8_t *)buff, (uint32_t) sector, count, SD2UM);
 			if(res != 0){
+			ERROR("Read 2 error");
 				return RES_ERROR;
 			};
 		};
@@ -101,8 +103,10 @@ uint8_t res;
 	if(pdrv == DEV_SD){
 		res=SD_transfer((uint8_t *)buff, (uint32_t) sector, count, UM2SD);
 		if(res != 0){
+			ERROR("Write 1 error");
 			res=SD_transfer((uint8_t *)buff, (uint32_t) sector, count, UM2SD);
 			if(res != 0){
+				ERROR("Write 2 error");
 				return RES_ERROR;
 			};
 		};
